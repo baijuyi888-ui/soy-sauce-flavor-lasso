@@ -54,7 +54,7 @@
 ├── requirements.txt
 ├── data/                   # 官方数据（模板自带）
 └── figures/
-    ├── fig1_lasso_paths.png        # 图 1：系数路径（含 λmin/λ1se 竖线与数值）
+    ├── fig1_lasso_paths.png        # 图 1：系数路径（含 λmin/λ1se 竖线、关键指标标注、被淘汰指标高亮）
     ├── fig2_cv_mse.png             # 图 2：10 折 CV 误差曲线（MSE ± SE）
     └── fig3_coefficients.png       # 图 3：λmin 下非零系数条形图
 ```

@@ -15,6 +15,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LassoCV, lasso_path
@@ -118,19 +119,55 @@ order = np.argsort(path_log)                      # 横轴按 log(λ) 从小到�
 path_log_sorted = path_log[order]
 path_coefs_sorted = path_coefs[:, order]
 
-fig1, ax = plt.subplots(figsize=(10, 6.5))
+# 被淘汰的 4 个指标（λmin 处系数为 0）与需要标注的关键指标
+ELIMINATED_CN = ["Gly甘氨酸", "Leu亮氨酸", "Thr苏氨酸", "Val缬氨酸"]
+LABEL_CN = ["Mg2+", "Na+", "5'-AMP", "Lys赖氨酸", "K+"]
+elim_idx = {features_cn.index(c) for c in ELIMINATED_CN}
+label_idx = {features_cn.index(c): NAME_MAP[c] for c in LABEL_CN}
+
+fig1, ax = plt.subplots(figsize=(10.5, 6.5))
 for j in range(len(features_cn)):
-    ax.plot(path_log_sorted, path_coefs_sorted[j], color=C_PATH,
-            lw=1.1, alpha=0.65)
-ax.axhline(0, color="#999999", lw=0.8, zorder=1)
-ax.axvline(np.log10(alpha_min), color=C_LMIN, ls="--", lw=1.6,
-           label="λmin (log10 λ = %.2f)" % np.log10(alpha_min))
-ax.axvline(np.log10(alpha_1se), color=C_L1SE, ls="-.", lw=1.6,
-           label="λ1se (log10 λ = %.2f)" % np.log10(alpha_1se))
+    if j in elim_idx:      # 被淘汰的指标: 灰色加粗, 一眼可辨
+        ax.plot(path_log_sorted, path_coefs_sorted[j], color="#B3B3B3",
+                lw=1.8, alpha=0.95, zorder=4)
+    else:
+        ax.plot(path_log_sorted, path_coefs_sorted[j], color=C_PATH,
+                lw=1.1, alpha=0.6, zorder=3)
+ax.axhline(0, color="#999999", lw=0.8, zorder=2)
+
+# 在曲线左端给关键指标加带引线的标签（自动防重叠）
+x0 = float(path_log_sorted[0])
+items = sorted(((j, float(path_coefs_sorted[j][0])) for j in label_idx),
+               key=lambda t: -t[1])
+ys = [y for _, y in items]
+min_gap = 0.045
+for k in range(1, len(ys)):
+    if ys[k - 1] - ys[k] < min_gap:
+        ys[k] = ys[k - 1] - min_gap
+for (j, y_curve), y_text in zip(items, ys):
+    ax.annotate(label_idx[j], xy=(x0 + 0.02, y_curve),
+                xytext=(x0 + 0.16, y_text), fontsize=9.5, va="center",
+                color="#222222",
+                bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#CCCCCC", lw=0.6),
+                arrowprops=dict(arrowstyle="-", color="#999999", lw=0.7))
+
+ax.axvline(np.log10(alpha_min), color=C_LMIN, ls="--", lw=1.6)
+ax.axvline(np.log10(alpha_1se), color=C_L1SE, ls="-.", lw=1.6)
+
+handles = [
+    Line2D([0], [0], color=C_PATH, lw=1.5, alpha=0.8,
+           label="Retained at λmin (36 indicators)"),
+    Line2D([0], [0], color="#B3B3B3", lw=2.2,
+           label="Eliminated at λmin: Gly, Leu, Thr, Val"),
+    Line2D([0], [0], color=C_LMIN, ls="--", lw=1.6,
+           label="λmin (log10 λ = %.2f)" % np.log10(alpha_min)),
+    Line2D([0], [0], color=C_L1SE, ls="-.", lw=1.6,
+           label="λ1se (log10 λ = %.2f)" % np.log10(alpha_1se)),
+]
+ax.legend(handles=handles, loc="upper right", fontsize=9, framealpha=0.95)
 ax.set_xlabel("log10(λ)")
 ax.set_ylabel("Coefficient")
 ax.set_title("Lasso Coefficient Profiles (40 Flavor Indicators)")
-ax.legend(loc="upper left")
 fig1.tight_layout()
 fig1.savefig(FIG / "fig1_lasso_paths.png")
 plt.close(fig1)
